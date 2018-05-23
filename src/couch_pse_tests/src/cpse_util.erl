@@ -10,7 +10,7 @@
 % License for the specific language governing permissions and limitations under
 % the License.
 
--module(test_engine_util).
+-module(cpse_util).
 -compile(export_all).
 
 
@@ -18,15 +18,15 @@
 
 
 -define(TEST_MODULES, [
-    test_engine_open_close_delete,
-    test_engine_get_set_props,
-    test_engine_read_write_docs,
-    test_engine_attachments,
-    test_engine_fold_docs,
-    test_engine_fold_changes,
-    test_engine_purge_docs,
-    test_engine_compaction,
-    test_engine_ref_counting
+    cpse_test_open_close_delete,
+    cpse_test_get_set_props,
+    cpse_test_read_write_docs,
+    cpse_test_attachments,
+    cpse_test_fold_docs,
+    cpse_test_fold_changes,
+    cpse_test_purge_docs,
+    cpse_test_compaction,
+    cpse_test_ref_counting
 ]).
 
 
