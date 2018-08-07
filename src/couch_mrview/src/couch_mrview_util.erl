@@ -38,6 +38,9 @@
 -define(MOD, couch_mrview_index).
 -define(GET_VIEW_RETRY_COUNT, 1).
 -define(GET_VIEW_RETRY_DELAY, 50).
+-define(LOWEST_KEY, null).
+-define(HIGHEST_KEY, {[{<<239, 191, 176>>, null}]}). % is {"\ufff0": null}
+
 
 -include_lib("couch/include/couch_db.hrl").
 -include_lib("couch_mrview/include/couch_mrview.hrl").
@@ -588,7 +591,12 @@ validate_args(Args) ->
             mrverror(<<"`partition` parameter is not supported in this view.">>)
     end,
 
-    Args#mrargs{
+    Args1 = case get_extra(Args, partitioned, false) of
+        true  -> apply_partition(Args);
+        false -> Args
+    end,
+
+    Args1#mrargs{
         start_key_docid=SKDocId,
         end_key_docid=EKDocId,
         group_level=GroupLevel
@@ -605,6 +613,37 @@ determine_group_level(#mrargs{group=true, group_level=undefined}) ->
     exact;
 determine_group_level(#mrargs{group_level=GroupLevel}) ->
     GroupLevel.
+
+apply_partition(#mrargs{} = Args0) ->
+    case get_extra(Args0, partition_applied, false) of
+        true ->
+            Args0;
+        false ->
+            Partition = get_extra(Args0, partition),
+            Args1 = apply_partition(Partition, Args0),
+            set_extra(Args1, partition_applied, true)
+    end.
+
+apply_partition(Partition, #mrargs{direction=fwd, start_key=undefined, end_key=undefined} = Args) ->
+    Args#mrargs{start_key=[Partition, ?LOWEST_KEY], end_key=[Partition, ?HIGHEST_KEY]};
+
+apply_partition(Partition, #mrargs{direction=rev, start_key=undefined, end_key=undefined} = Args) ->
+    Args#mrargs{start_key=[Partition, ?HIGHEST_KEY], end_key=[Partition, ?LOWEST_KEY]};
+
+apply_partition(Partition, #mrargs{direction=fwd, start_key=SK0, end_key=undefined} = Args) ->
+    Args#mrargs{start_key=[Partition, SK0], end_key=[Partition, ?HIGHEST_KEY]};
+
+apply_partition(Partition, #mrargs{direction=rev, start_key=SK0, end_key=undefined} = Args) ->
+    Args#mrargs{start_key=[Partition, SK0], end_key=[Partition, ?LOWEST_KEY]};
+
+apply_partition(Partition, #mrargs{direction=fwd, start_key=undefined, end_key=EK0} = Args) ->
+    Args#mrargs{start_key=[Partition, ?LOWEST_KEY], end_key=[Partition, EK0]};
+
+apply_partition(Partition, #mrargs{direction=rev, start_key=undefined, end_key=EK0} = Args) ->
+    Args#mrargs{start_key=[Partition, ?HIGHEST_KEY], end_key=[Partition, EK0]};
+
+apply_partition(Partition, #mrargs{start_key=SK0, end_key=EK0} = Args) ->
+    Args#mrargs{start_key=[Partition, SK0], end_key=[Partition, EK0]}.
 
 
 check_range(#mrargs{start_key=undefined}, _Cmp) ->
