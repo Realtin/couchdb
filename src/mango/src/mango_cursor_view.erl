@@ -71,7 +71,8 @@ explain(Cursor) ->
         {direction, Args#mrargs.direction},
         {stable, Args#mrargs.stable},
         {update, Args#mrargs.update},
-        {conflicts, Args#mrargs.conflicts}
+        {conflicts, Args#mrargs.conflicts},
+        {extra, Args#mrargs.extra}
     ]}}].
 
 
@@ -93,14 +94,23 @@ maybe_replace_max_json([H | T] = EndKey) when is_list(EndKey) ->
 maybe_replace_max_json(EndKey) ->
     EndKey.
 
-base_args(#cursor{index = Idx} = Cursor) ->
-    #mrargs{
+base_args(#cursor{index = Idx, opts = Opts} = Cursor) ->
+    Args1 = #mrargs{
         view_type = map,
         reduce = false,
         start_key = mango_idx:start_key(Idx, Cursor#cursor.ranges),
         end_key = mango_idx:end_key(Idx, Cursor#cursor.ranges),
         include_docs = true
-    }.
+    },
+    Args2 = add_partition_opts(Args1, couch_util:get_value(partition, Opts)),
+    Args3 = couch_mrview_util:set_extra(Args2, style, all_docs),
+    Args3.
+
+add_partition_opts(#mrargs{} = Args, <<>>) ->
+    Args;
+add_partition_opts(#mrargs{} = Args, Partition) ->
+    Args1 = couch_mrview_util:set_extra(Args, partitioned, true),
+    couch_mrview_util:set_extra(Args1, partition, Partition).
 
 
 execute(#cursor{db = Db, index = Idx, execution_stats = Stats} = Cursor0, UserFun, UserAcc) ->

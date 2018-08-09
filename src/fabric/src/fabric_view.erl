@@ -122,7 +122,7 @@ maybe_send_row(State) ->
         user_acc = AccIn,
         query_args = QueryArgs
     } = State,
-    Partitioned = couch_mrview_util:get_extra(QueryArgs, partitioned, false),
+    Partitioned = couch_mrview_util:get_extra(QueryArgs, partitioned),
     case fabric_dict:any(0, Counters) of
     true ->
         {ok, State};
@@ -205,7 +205,10 @@ possibly_embed_doc(#collector{db_name=DbName, query_args=Args},
 detach_partition(#view_row{key=[_Partition, Key]} = Row) ->
     Row#view_row{key = Key};
 detach_partition(#view_row{key=null} = Row) ->
-    Row#view_row{key = null}.
+    Row#view_row{key = null};
+detach_partition(#view_row{} = Row) ->
+    Row.
+
 
 
 keydict(undefined) ->
