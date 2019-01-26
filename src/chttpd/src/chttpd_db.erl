@@ -34,7 +34,8 @@
     rev = nil,
     open_revs = [],
     update_type = interactive_edit,
-    atts_since = nil
+    atts_since = nil,
+    q = nil
 }).
 
 % Accumulator for changes_callback function
@@ -785,7 +786,8 @@ db_doc_req(#httpd{method='GET', mochi_req=MochiReq}=Req, Db, DocId) ->
         rev = Rev,
         open_revs = Revs,
         options = Options0,
-        atts_since = AttsSince
+        atts_since = AttsSince,
+        q = Q
     } = parse_doc_query(Req),
     Options = [{user_ctx, Req#httpd.user_ctx} | Options0],
     case Revs of
@@ -795,8 +797,20 @@ db_doc_req(#httpd{method='GET', mochi_req=MochiReq}=Req, Db, DocId) ->
             [{atts_since, AttsSince}, attachments | Options];
         true -> Options
         end,
-        Doc = couch_doc_open(Db, DocId, Rev, Options2),
-        send_doc(Req, Doc, Options2);
+        Options3 =
+        if Q /= nil ->
+            [{q, Q} | Options2];
+        true -> Options2
+        end,
+        Doc = couch_doc_open(Db, DocId, Rev, Options3),
+        % Sub-Document Query
+        case Doc#doc.is_selector_result of
+        false ->
+          send_doc(Req, Doc, Options3);
+        _ ->
+          {[{<<"result">>, Value}]} = Doc#doc.body,
+          send_json(Req, 200, [], Value)
+        end;
     _ ->
         case fabric:open_revs(Db, DocId, Revs, Options) of
             {ok, []} when Revs == all ->
@@ -1610,6 +1624,8 @@ parse_doc_query({Key, Value}, Args) ->
         {"w", W} ->
             Options = [{w,W} | Args#doc_query_args.options],
             Args#doc_query_args{options=Options};
+        {"q", Q} ->
+            Args#doc_query_args{q=Q};
         _Else -> % unknown key value pair, ignore.
             Args
     end.

@@ -116,6 +116,8 @@
 
     deleted = false,
 
+    is_selector_result = false,
+
     % key/value tuple of meta information, provided when using special options:
     % couch_db:open_doc(Db, Id, Options).
     meta = []
@@ -218,4 +220,3 @@
 -type user_ctx() :: #user_ctx{}.
 -type sec_props() :: [tuple()].
 -type sec_obj() :: {sec_props()}.
-

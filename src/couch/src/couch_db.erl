@@ -282,16 +282,41 @@ open_doc(Db, Id, Options) ->
     {ok, #doc{deleted=true}=Doc} ->
         case lists:member(deleted, Options) of
         true ->
-            apply_open_options({ok, Doc},Options);
+            maybe_apply_selector({ok, Doc},Options);
         false ->
             {not_found, deleted}
         end;
     Else ->
-        apply_open_options(Else,Options)
+        maybe_apply_selector(Else,Options)
     end.
 
+maybe_apply_selector({ok, Doc}, Options) ->
+  case couch_util:get_value(q, Options) of
+  undefined ->
+    apply_open_options({ok, Doc},Options);
+  Q ->
+    JsonDoc = couch_doc:to_json_obj(Doc,[]),
+    BinaryQuery = ?l2b(Q), % macro
+    case mango_doc:get_field(JsonDoc, BinaryQuery) of
+        % not_found -> not_found;
+        % bad_path -> not_found;
+        Value ->
+          couch_log:info("~n~n~n~nmango_doc:get_field  Doc: ~p ~n~n~n", [Doc]),
+          couch_log:info("~n~n~n~nmango_doc:get_field  JsonDoc: ~p ~n~n~n", [JsonDoc]),
+          couch_log:info("~n~n~n~nmango_doc:get_field  BinaryQuery: ~p ~n~n~n", [BinaryQuery]),
+          Doc2 = Doc#doc{
+            body = {[{<<"result">>, Value}]},
+            is_selector_result = true
+          },
+          apply_open_options({ok, Doc2},Options)
+        end
+    end;
+maybe_apply_selector(Doc, Options) ->
+  apply_open_options(Doc, Options).
+
 apply_open_options({ok, Doc},Options) ->
-    apply_open_options2(Doc,Options);
+  apply_open_options2(Doc,Options);
+
 apply_open_options(Else,_Options) ->
     Else.
 
