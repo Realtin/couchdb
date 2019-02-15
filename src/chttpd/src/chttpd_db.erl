@@ -396,6 +396,7 @@ db_req(#httpd{path_parts=[_,<<"_ensure_full_commit">>]}=Req, _Db) ->
 
 db_req(#httpd{method='POST',path_parts=[_,<<"_bulk_docs">>], user_ctx=Ctx}=Req, Db) ->
     couch_stats:increment_counter([couchdb, httpd, bulk_requests]),
+
     chttpd:validate_ctype(Req, "application/json"),
     {JsonProps} = chttpd:json_body_obj(Req),
     DocsArray = case couch_util:get_value(<<"docs">>, JsonProps) of
@@ -906,9 +907,13 @@ db_doc_req(#httpd{method='PUT', user_ctx=Ctx}=Req, Db, DocId) ->
     } = parse_doc_query(Req),
     DbName = couch_db:name(Db),
     couch_doc:validate_docid(DocId, DbName),
+    % couch_log:info("~ndb_doc_req:PUT ~n~n"),
+    % couch_log:info("~ndb_doc_req:PUT update_type: ~p~n~n", [update_type]),
+    % couch_log:info("~ndb_doc_req:PUT DocId ~p~n~n", [DocId]),    
 
     W = chttpd:qs_value(Req, "w", integer_to_list(mem3:quorum(Db))),
     Options = [{user_ctx,Ctx}, {w,W}],
+    couch_log:info("~n~n~n db_doc_req:PUT Options ~p~n~n", [Options]),
 
     Loc = absolute_uri(Req, [$/, couch_util:url_encode(DbName),
         $/, couch_util:url_encode(DocId)]),
